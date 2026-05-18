@@ -1,6 +1,6 @@
 # Rent Watcher
 
-A rental analytics dashboard that tracks listings and helps users compare rental prices by area, size, and value.
+A rental analytics website that tracks listings and helps users compare rental prices by area, size, and value.
 
 ## Current Goal
 Build a working minimal viable product that can:
