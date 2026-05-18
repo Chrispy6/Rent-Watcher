@@ -18,7 +18,7 @@ Build a working minimal viable product that can:
 - charts
 - deployed demo
 
-## Tech Stack
+## Languages
 - Frontend: React + Tailwind
 - Backend: FastAPI
 - Database: PostgreSQL
