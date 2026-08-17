@@ -9,10 +9,34 @@
 <body>
   <header>
     <h1>Rent Watcher</h1>
+    <p> This project aims to compare rental listings and find the best deals based on user needs </p>
   </header>
 
   <main>
-    <p> testing nice </p>
+    <section class="Filters">
+      <label for="max_rent"> Maximum Monthly Rent </label>
+
+      <input
+      type = "number"
+      id = "max_rent"
+      example = "2000"
+      >
+
+      <label for="min_rent"> Minimum Monthly Rent </label>
+
+      <input
+      type = "number"
+      id = "min_rent"
+      example = "800"
+      >
+
+    <button id="filter_button">Apply Filter</button>
+    <button id="reset_button">Reset</button>
+    </section>
+
+    <p id="results_count"></p>
+
+    <section id="listing_container"></section>
   </main>
   <script src="script.js"></script>
 </body>
