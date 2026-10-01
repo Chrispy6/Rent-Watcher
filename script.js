@@ -37,9 +37,9 @@ const listings = [
   },
 ];
 
-const listing_container = getElementById("listing_container");
-const result_count = getElementById("results_count");
-const max_rent = getElementById("max_rent");
-const min_rent = getElementById("min_rent");
-const filter_button = getElementById("filter_button");
-const reset_button = getElementById("reset_button");
+const listing_container = document.getElementById("listing_container");
+const result_count = document.getElementById("results_count");
+const max_rent = document.getElementById("max_rent");
+const min_rent = document.getElementById("min_rent");
+const filter_button = document.getElementById("filter_button");
+const reset_button = document.getElementById("reset_button");
