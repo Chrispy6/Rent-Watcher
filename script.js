@@ -16,8 +16,18 @@ function renderListings(listingsToRender) {
 
   result_count.textContent = `${listings.length} listings shown`;
 
+  //loop through all listings and create articles to show rental listings.
   for(const listings of listingsToRender){
+    const card = document.createElelement("article");
+    card.className = "listings-card";
+
+    const adress = document.createElement("h2");
+    adress.textContent = listings.formattedAdress ?? "Adress inaccessable";
+
+    const rent = document.createElement("p");
+    rent.textContent = listings.price != null;
     
+
   }
 
 
