@@ -12,21 +12,38 @@ const reset_button = document.getElementById("reset_button");
 function renderListings(listingsToRender) {
 
   //this will clear all listings so that we have a clean container to render
-  listing_container.replaceChildren
+  listing_container.replaceChildren();
 
-  result_count.textContent = `${listings.length} listings shown`;
+  result_count.textContent = `${listingsToRender.length} listings shown`;
 
   //loop through all listings and create articles to show rental listings.
-  for(const listings of listingsToRender){
-    const card = document.createElelement("article");
-    card.className = "listings-card";
+  for (const listing of listingsToRender) {
+    const card = document.createElement("article");
+    card.className = "listing-card";
 
-    const adress = document.createElement("h2");
-    adress.textContent = listings.formattedAdress ?? "Adress inaccessable";
-
+    //learned the ?? method to replace left value with the right if the left is null or undefined from W3Schools
+    const address = document.createElement("h2");
+    address.textContent = listing.formattedAddress ?? "Address inaccessable";
     const rent = document.createElement("p");
-    rent.textContent = listings.price != null;
-    
+    rent.textContent = listing.price != null
+      ? `$${listing.price.toLocaleString("en-US")} / month`
+      : "Rent unavailable";
+
+    const rooms = document.createElement("p");
+    const bedrooms = listing.bedrooms === 0
+      ? "Studio"
+      : `${listing.bedrooms ?? "Unknown"} bedrooms`;
+
+    rooms.textContent =
+      `${bedrooms} · ${listing.bathrooms ?? "Unknown"} bathrooms`;
+
+    const size = document.createElement("p");
+    size.textContent = listing.squareFootage > 0
+      ? `${listing.squareFootage.toLocaleString("en-US")} sq ft`
+      : "Square footage unknown";
+
+    card.append(address, rent, rooms, size);
+    listing_container.append(card);
 
   }
 
@@ -48,8 +65,7 @@ async function loadListings() {
 
     //print out how many listings were loaded
     listings = await response.json();
-    result_count.textContent = `${listings.length} listings loaded`;
-    console.log(listings[0]);
+    renderListings(listings);
 
     //catch error in case we can't load the listings itself but were able to loaod file.
   } catch (error) {
@@ -61,5 +77,5 @@ async function loadListings() {
 
 
 loadListings();
-renderListings();
+
 

@@ -1,1 +1,30 @@
+body {
+  font-family: Arial, sans-serif;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+  background: #f5f7fa;
+  color: #172033;
+}
 
+#listing_container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+
+.listing-card {
+  background: white;
+  border: 1px solid #dce1e8;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.listing-card h2 {
+  margin-top: 0;
+  font-size: 18px;
+}
+
+.listing-card p {
+  margin: 8px 0;
+}
