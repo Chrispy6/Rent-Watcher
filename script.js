@@ -108,7 +108,7 @@ filter_button.addEventListener("click", applyFilters);
 
 //waits for user to press reset button to get rid of filters and load all listings. We dont pass a initially created function here 
 // (we make a tiny one ourselves that resets the filters so that all listings are displayed)
-reset_button.addEventListener("click", () => {min_rent.value = ""; max_rent = ""; renderListings(listings);})
+reset_button.addEventListener("click", () => {min_rent.value = ""; max_rent.value = ""; renderListings(listings);})
 
 
 
