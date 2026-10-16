@@ -64,7 +64,7 @@ function applyFilters() {
 
   //check if conditions are met for minimum and maximum values
   if (minimum < 0 || maximum < 0 || minimum > maximum) {
-    result_count.textContent = "minimum and maximum must be positive and minimum must be less than maximum";
+    result_count.textContent = "minimum and maximum must be positive and minimum must be less than or equal to maximum";
     return;
   }
 
