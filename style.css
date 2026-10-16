@@ -1,3 +1,4 @@
+
 body {
   font-family: Arial, sans-serif;
   max-width: 1100px;
@@ -14,8 +15,8 @@ body {
 }
 
 .listing-card {
-  background: white;
-  border: 1px solid #dce1e8;
+  background: rgb(161, 152, 152);
+  border: 1px solid #b6bac1;
   border-radius: 10px;
   padding: 20px;
 }
