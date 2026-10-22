@@ -9,6 +9,12 @@ const min_rent = document.getElementById("min_rent");
 const filter_button = document.getElementById("filter_button");
 const reset_button = document.getElementById("reset_button");
 
+// Use FastAPI locally and the saved snapshot on the published demo.
+const use_local_backend = ["127.0.0.1", "localhost"].includes(window.location.hostname);
+const listings_url = use_local_backend
+  ? "http://127.0.0.1:8000/listings"
+  : "./Golden_Listings.json";
+
 function renderListings(listingsToRender) {
 
   //this will clear all listings so that we have a clean container to render
@@ -21,9 +27,9 @@ function renderListings(listingsToRender) {
     const card = document.createElement("article");
     card.className = "listing-card";
 
-    //the ?? and ? : method is used to replace left value with the right based on a condition 
+    // Use fallback text when an address is missing.
     const address = document.createElement("h2");
-    address.textContent = listing.formattedAddress ?? "Address inaccessable";
+    address.textContent = listing.formattedAddress ?? "Address unavailable";
 
     const rent = document.createElement("p");
     rent.textContent = listing.price != null ? `$${listing.price.toLocaleString("en-US")} / month` : "Rent unavailable";
@@ -42,10 +48,10 @@ function renderListings(listingsToRender) {
   }
 }
 
-function applyFilters() {
-  //check if the inputted numbers are actually numbers
+async function applyFilters() {
+  // Check the number inputs against their HTML validation rules.
   if (!min_rent.checkValidity() || !max_rent.checkValidity()) {
-    result_count.textContent = "please enter a valid dollar amount for rent";
+    result_count.textContent = "Please enter a valid dollar amount for rent.";
     return;
   }
 
@@ -58,41 +64,56 @@ function applyFilters() {
     minimum = Number(min_rent.value);
   }
 
-  //one line method of the same thing I did with minimum 
+  //one line method of the same thing I did with minimum
   const maximum = max_rent.value === "" ? Infinity : Number(max_rent.value);
 
 
   //check if conditions are met for minimum and maximum values
   if (minimum < 0 || maximum < 0 || minimum > maximum) {
-    result_count.textContent = "minimum and maximum must be positive and minimum must be less than or equal to maximum";
+    result_count.textContent = "Rent amounts cannot be negative, and minimum cannot exceed maximum.";
     return;
   }
 
-  //make a new array cointaining listings that fall within the rent price filters 
-  const filtered_listings = listings.filter((listing) => { return Number.isFinite(listing.price) && listing.price >= minimum && listing.price <= maximum; });
+  if (use_local_backend) {
+    // Ask PostgreSQL for matching records through FastAPI.
+    await loadListings(minimum, maximum);
+  } else {
+    // The published demo filters its saved snapshot.
+    const filtered_listings = listings.filter((listing) =>
+      Number.isFinite(listing.price) &&
+      listing.price >= minimum &&
+      listing.price <= maximum
+    );
 
-  //render these new filtered listings
-  renderListings(filtered_listings);
-
+    renderListings(filtered_listings);
+  }
 }
 
-//I'm using an asynchronous function here because I need to make
-//sure that we wait until all listings get loaded before we do anything else 
-async function loadListings() {
+// Wait for the response data before rendering; the browser stays responsive.
+async function loadListings(minimum = 0, maximum = Infinity) {
   try {
-    //try to get the rental listings
-    const response = await fetch("./Golden_Listings.json");
+    let request_url = listings_url;
 
-    //throw error in case we can't grab the listings file for any reason
-    if (!response.ok) {
-      throw new Error(`Couldn't load listings file: ${response.status}`);
+    if (use_local_backend) {
+      const url = new URL(listings_url);
+
+      url.searchParams.set("min_rent", minimum);
+
+      if (Number.isFinite(maximum)) {
+        url.searchParams.set("max_rent", maximum);
+      }
+
+      request_url = url.toString();
     }
 
-    //print out how many listings were loaded
+    const response = await fetch(request_url);
+
+    if (!response.ok) {
+      throw new Error(`Couldn't load listings: ${response.status}`);
+    }
+
     listings = await response.json();
     renderListings(listings);
-
-    //catch error in case we can't load the listings itself but were able to loaod file.
   } catch (error) {
     result_count.textContent = "Cannot load listings.";
     console.error(error);
@@ -103,12 +124,11 @@ async function loadListings() {
 loadListings();
 
 
-//waits for user to press filter button to filter listings based on inputted numbers. We pass the applyFilters function here 
+// Run the named handler when Apply Filter is clicked.
 filter_button.addEventListener("click", applyFilters);
 
-//waits for user to press reset button to get rid of filters and load all listings. We dont pass a initially created function here 
-// (we make a tiny one ourselves that resets the filters so that all listings are displayed)
-reset_button.addEventListener("click", () => {min_rent.value = ""; max_rent.value = ""; renderListings(listings);})
+// Pass an inline handler that clears the filters and restores all records.
+reset_button.addEventListener("click", () => { min_rent.value = ""; max_rent.value = ""; renderListings(listings); })
 
 
 
