@@ -8,12 +8,70 @@ const max_rent = document.getElementById("max_rent");
 const min_rent = document.getElementById("min_rent");
 const filter_button = document.getElementById("filter_button");
 const reset_button = document.getElementById("reset_button");
+const data_status = document.getElementById("data_status");
 
 // Use FastAPI locally and the saved snapshot on the published demo.
 const use_local_backend = ["127.0.0.1", "localhost"].includes(window.location.hostname);
 const listings_url = use_local_backend
   ? "http://127.0.0.1:8000/listings"
-  : "./Golden_Listings.json";
+  : "https://rent-watcher.onrender.com/listings";
+
+
+
+
+async function fetchListingData(url) {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Couldn't load listings: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (!Array.isArray(data)) {
+    throw new Error("Expected an array of listings.");
+  }
+
+  return data;
+}
+
+
+
+
+async function loadPublishedListings() {
+  let snapshot_loaded = false;
+
+  // Display the saved records without waiting for Render.
+  try {
+    listings = await fetchListingData("./Golden_Listings.json");
+    snapshot_loaded = true;
+
+    applyFilters();
+    data_status.textContent =
+      "Showing saved snapshot. Checking database for updates…";
+  } catch (error) {
+    console.error(error);
+    data_status.textContent =
+      "Saved snapshot unavailable. Loading database records…";
+  }
+
+  // The page remains usable while this request waits.
+  try {
+    listings = await fetchListingData(listings_url);
+
+    // Reapply the current input values to the replacement data.
+    applyFilters();
+    data_status.textContent = "Showing database records.";
+  } catch (error) {
+    console.error(error);
+
+    data_status.textContent = snapshot_loaded
+      ? "Showing saved snapshot. Database service is unavailable."
+      : "Unable to load listings. Please try again later.";
+  }
+}
+
+
 
 function renderListings(listingsToRender) {
 
@@ -47,6 +105,8 @@ function renderListings(listingsToRender) {
 
   }
 }
+
+
 
 async function applyFilters() {
   // Check the number inputs against their HTML validation rules.
@@ -89,6 +149,9 @@ async function applyFilters() {
   }
 }
 
+
+
+
 // Wait for the response data before rendering; the browser stays responsive.
 async function loadListings(minimum = 0, maximum = Infinity) {
   try {
@@ -120,15 +183,30 @@ async function loadListings(minimum = 0, maximum = Infinity) {
   }
 }
 
+
+
 //load all listings without any filters
-loadListings();
+if (use_local_backend) {
+  loadListings();
+} else {
+  loadPublishedListings();
+}
 
 
 // Run the named handler when Apply Filter is clicked.
 filter_button.addEventListener("click", applyFilters);
 
 // Pass an inline handler that clears the filters and restores all records.
-reset_button.addEventListener("click", () => { min_rent.value = ""; max_rent.value = ""; renderListings(listings); })
+reset_button.addEventListener("click", async () => {
+  min_rent.value = "";
+  max_rent.value = "";
+
+  if (use_local_backend) {
+    await loadListings();
+  } else {
+    renderListings(listings);
+  }
+});
 
 
 
