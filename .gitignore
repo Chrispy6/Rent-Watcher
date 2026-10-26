@@ -2,3 +2,5 @@
 __pycache__/
 *.pyc
 .env
+Golden_Listings.pending.json
+Golden_Listings.pending.json.tmp
