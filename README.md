@@ -1,135 +1,227 @@
 # Rent Watcher
 
-A rental comparison project for Golden, Colorado. The interface displays addresses,
-monthly asking rent, bedrooms, bathrooms, and square footage, with minimum/maximum
-rent filters and a reset control.
+A full-stack rental search application for Golden, Colorado. Browse rental
+listings and filter by monthly rent, with automated data refreshes and a saved
+snapshot that keeps the public site usable while the backend starts.
 
-## Current behavior
+[Live website](https://chrispy6.github.io/Rent-Watcher/) ·
+[API documentation](https://rent-watcher.onrender.com/docs)
 
-- The local frontend requests listings from FastAPI, which queries PostgreSQL.
-- Rent filtering currently runs in the browser after the records are loaded.
-- The GitHub Pages demo loads the saved JSON snapshot directly. It does not require
-  a visitor to run the local backend.
-- Both versions use saved RentCast data. Automatic refreshes, historical tracking,
-  and price scoring are not implemented. The snapshot contains 99 listings; it is
-  not a claim about current availability.
+## Features
 
-Demo: https://chrispy6.github.io/Rent-Watcher/
+- Listing cards with address, monthly rent, bedrooms, bathrooms, and square footage.
+- Minimum and maximum rent filters, input validation, and a reset control.
+- FastAPI endpoints backed by PostgreSQL hosted on Neon.
+- Daily RentCast ingestion through GitHub Actions, with response validation and
+  transactional inserts, updates, and removal of stale Golden listings.
+- A saved JSON snapshot displayed before the public backend responds. Current
+  filter inputs are reapplied when database records arrive; the snapshot remains
+  available if the backend request fails.
+- A persistent request budget shared across updater runs.
 
-## Requirements
+## Architecture
 
-- Python and pip (the development environment currently uses Python 3.15)
-- PostgreSQL (the local setup uses PostgreSQL 18 on port 5432)
-- PowerShell for the commands below
+| Component | Technology / hosting | Responsibility |
+| --- | --- | --- |
+| Frontend | HTML, CSS, JavaScript / GitHub Pages | Render listings and handle visitor interactions |
+| Backend | Python, FastAPI, Uvicorn / Render | Validate API query parameters and query PostgreSQL |
+| Database | PostgreSQL / Neon | Store the latest imported listings and request-attempt ledger |
+| Data refresh | Python / GitHub Actions | Fetch RentCast records, synchronize Neon, and publish the snapshot |
 
-## Install Python dependencies
+On the public site, the browser first loads `Golden_Listings.json`, then requests
+`/listings` from FastAPI on Render. FastAPI reads Neon and returns JSON; browser
+JavaScript renders the response. The free backend can take time to wake after
+inactivity, so displaying the snapshot avoids waiting for it before showing listings.
 
-Run commands from the project root:
+**Filtering differs by environment:** the public frontend filters its loaded data
+in JavaScript. Locally, Apply Filter sends `min_rent` and `max_rent` to FastAPI,
+which applies the bounds in a parameterized SQL query. Reset reloads all records
+locally and restores the loaded records on the public site.
+
+Visitor requests and filter clicks do not call RentCast. Only the updater fetches
+external rental data. Database records and the snapshot reflect the last successful
+refresh; they are not guaranteed to represent every available rental in Golden.
+
+## Run locally
+
+Use Python 3.13, as specified in `.python-version`, and a PostgreSQL database
+(Neon or a local instance). The following commands use Windows PowerShell and
+should be run from the project root.
+
+### 1. Install dependencies
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r backend/requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
 ```
 
-If `.venv` already exists, skip creating it again. No activation is required when
-using its Python executable directly.
+Skip virtual environment creation if `.venv` already exists. Activation is not
+required when using its Python executable directly.
 
-## Create the database and table
+### 2. Initialize a new database
 
-With PostgreSQL running, open its command-line client (adjust the version/path if
-needed):
-
-```powershell
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d postgres
-```
-
-In psql, for a new setup:
+Run `backend/schema.sql` in the database's SQL editor to create `listings`.
+For a new setup, also create the updater's request ledger:
 
 ```sql
-CREATE DATABASE rent_watcher;
-\connect rent_watcher
-\i backend/schema.sql
+CREATE TABLE rentcast_request_attempts (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 ```
 
-Skip creation steps for an existing database/table. `backend/schema.sql` is the
-schema definition, not a migration that should be rerun against an existing table.
+These are initialization steps, not migrations to rerun against existing tables.
 
-## Import the saved records
-
-In PowerShell:
+To seed the database from the committed snapshot without calling RentCast:
 
 ```powershell
 .\.venv\Scripts\python.exe backend/import_listings.py
 ```
 
-Enter the PostgreSQL password when prompted. The importer reads
-`Golden_Listings.json` without calling RentCast. Existing IDs are updated rather
-than duplicated. Missing or nonpositive square footage becomes SQL NULL.
-If an import fails, its transaction is rolled back.
+Enter a raw Neon connection string when prompted. Leave it blank to use the
+importer's local PostgreSQL defaults and enter the local password instead.
+This importer inserts or updates IDs; it does not remove records absent from the
+snapshot. Nonpositive square footage is stored as SQL `NULL`.
 
-In psql, check the result:
+### 3. Start the backend
 
-```sql
-SELECT COUNT(*) FROM listings;
-```
-
-For the supplied snapshot, expect 99 records.
-
-## Run the local application
-
-In the first PowerShell terminal, supply the database password as a process
-environment variable. Enter the actual password at the prompt, not in source code:
+In the first terminal, set the connection string and start Uvicorn:
 
 ```powershell
-$env:RENT_WATCHER_DB_PASSWORD = [System.Net.NetworkCredential]::new("", (Read-Host "PostgreSQL password" -AsSecureString)).Password
+$env:DATABASE_URL = [System.Net.NetworkCredential]::new("", (Read-Host "Paste PostgreSQL connection string" -AsSecureString)).Password
 .\.venv\Scripts\python.exe -m uvicorn backend.main:app --reload
 ```
 
-The variable name in Python stays `RENT_WATCHER_DB_PASSWORD`. Set the variable
-again if you open a new terminal. The local backend currently connects as the
-`postgres` administrator; use a dedicated application role before production use.
+Paste the raw connection URL, beginning with `postgresql://`, with the actual
+password and without surrounding quotes or a `psql` command. This environment
+variable belongs to that terminal session and must be set again in a new session.
+The application does not automatically load a `.env` file.
 
-In a second PowerShell terminal at the project root:
+### 4. Start the frontend
+
+In a second terminal at the project root:
 
 ```powershell
 .\.venv\Scripts\python.exe -m http.server 5500 --bind 127.0.0.1
 ```
 
-Open http://127.0.0.1:5500/ and keep both terminals running. Press Ctrl+C in a
-terminal to stop its server. PostgreSQL must also remain running.
+Open [the local website](http://127.0.0.1:5500/). Keep both terminals running;
+press Ctrl+C in each to stop its server. A local PostgreSQL instance must also be
+running if used instead of Neon. The published website runs independently of these
+local servers and does not require your computer to stay on.
 
-Endpoints:
+## API
 
-- `http://127.0.0.1:8000/alive`: verifies the backend responds; does not check the database.
-- `http://127.0.0.1:8000/listings`: queries PostgreSQL and returns listing records.
-- `http://127.0.0.1:8000/docs`: interactive API documentation.
+| Endpoint | Behavior |
+| --- | --- |
+| `GET /alive` | Application health response; does not check database connectivity |
+| `GET /listings` | Database records, optionally filtered by `min_rent` and `max_rent` |
+| `GET /docs` | Interactive FastAPI documentation |
 
-## Manual checks
+Example: `http://127.0.0.1:8000/listings?min_rent=800&max_rent=2000`.
+Bounds are inclusive, must be finite and nonnegative, and the minimum cannot
+exceed the maximum. Results are ordered by rent, then listing ID. CORS allows
+the local frontend origins and `https://chrispy6.github.io`.
 
-- Empty inputs: 99 listings for the supplied snapshot.
-- Minimum 800 and maximum 2000: 56 listings.
-- Reset: all listings restored and inputs cleared.
-- Minimum 9000 with no maximum: zero listings.
-- Negative rent or minimum above maximum: validation message.
-- Equal minimum and maximum: listings priced at exactly that amount.
+## Automated refresh and deployment
 
-## Project structure
+`.github/workflows/refresh-listings.yml` runs on `main`:
 
-- `index.html`: page structure and filter controls.
-- `style.css`: responsive grid and card styling.
-- `script.js`: loading, rendering, input validation, and browser-side filtering.
-- `Golden_Listings.json`: saved rental snapshot obtained from RentCast.
-- `backend/main.py`: FastAPI endpoints, local CORS configuration, and database query.
-- `backend/schema.sql`: PostgreSQL table definition.
-- `backend/import_listings.py`: manual JSON-to-PostgreSQL importer.
-- `backend/requirements.txt`: Python dependencies.
+| Trigger | Refresh RentCast data | Publish website |
+| --- | --- | --- |
+| Push to `main` | No | Yes |
+| Daily schedule (`17 8 * * *`, 08:17 UTC) | Yes | Yes, after successful preceding steps |
+| Manual workflow run | Only when the `refresh` checkbox is selected | Yes |
 
-## Deployment status
+Configure GitHub Pages to use **GitHub Actions** as its publishing source. Add
+these **repository secrets** under Settings → Secrets and variables → Actions:
 
-GitHub Pages hosts the snapshot-based frontend demo. The FastAPI backend and
-PostgreSQL database are local. A public backend deployment will need a public API
-URL, configured database connection settings, and its frontend origin allowed by CORS.
+- `DATABASE_URL`: the Neon PostgreSQL connection string.
+- `RENTCAST_API_KEY`: the RentCast API key.
+
+Render also needs `DATABASE_URL`. Its build command is
+`pip install -r backend/requirements.txt`; its start command is
+`python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT`.
+Keep credential values out of source code and committed files.
+
+Each refresh:
+
+1. Commits an attempt reservation in Neon before sending a RentCast request.
+2. Requests active Golden, CO listings, up to 500 records, and checks the total
+   count to reject incomplete results rather than automatically fetching more pages.
+3. Validates nonempty results, unique IDs, addresses, location, and active status,
+   then writes `Golden_Listings.pending.json`.
+4. Imports that file into Neon in one transaction, inserting or updating records
+   and removing Golden, CO records absent from the response.
+5. Copies the validated response to `Golden_Listings.json`, commits changes if
+   needed, and deploys the four public frontend files to GitHub Pages.
+
+The updater permits **40 attempts in a rolling 35-day window**. A database lock
+serializes budget checks and reservations. Database failures stop the request;
+failed HTTP requests still consume a reservation. There is no automatic HTTP retry.
+Manual RentCast calls outside this script are not counted, so this is an application
+guardrail, not a provider-enforced account spending cap.
+
+GitHub schedules can be delayed and public-repository schedules disable after
+60 days without repository activity. Check Actions for refresh failures. Database
+updates and website publishing are separate operations: if publishing fails after
+a database update, the public snapshot may temporarily lag behind Neon.
+
+The workflow can commit updated snapshots remotely. Run `git pull` before a new
+coding session, after committing or otherwise preserving unfinished local changes.
+
+## Manual refresh
+
+In a terminal with `DATABASE_URL` set, supply the API key:
+
+```powershell
+$env:RENTCAST_API_KEY = [System.Net.NetworkCredential]::new("", (Read-Host "Paste RentCast API key" -AsSecureString)).Password
+.\.venv\Scripts\python.exe backend/update_listings.py
+.\.venv\Scripts\python.exe backend/sync_pending.py
+```
+
+The first script attempts one RentCast request after reserving budget. The second
+reads the saved pending file without another request. Run them in order, and stop
+if either fails. After a successful sync, copy the pending file over
+`Golden_Listings.json`, commit, and push to publish the matching snapshot. The
+pending file and its temporary write file are ignored by Git.
+
+## Manual verification
+
+- Load the public site: snapshot listings appear, then the status changes to
+  **Showing database records.** when the backend responds.
+- Block the Render `/listings` request in browser developer tools: the saved
+  snapshot remains usable, including filtering and reset. Unblock afterward.
+- Try a valid rent range, empty bounds, equal bounds, a range with no matches,
+  negative values, and a minimum greater than the maximum.
+- Reset clears both inputs and restores the full loaded dataset.
+- Verify local `/listings` query parameters filter database records.
+- Compare counts after a refresh; counts change over time and are not fixed test
+  expectations.
+
+## Project files
+
+| File | Purpose |
+| --- | --- |
+| `index.html`, `style.css` | Page structure, controls, and responsive listing cards |
+| `script.js` | Data loading, rendering, filtering, and snapshot fallback |
+| `Golden_Listings.json` | Committed snapshot for the public site |
+| `backend/main.py` | FastAPI routes, CORS, and parameterized database query |
+| `backend/schema.sql` | Listings table definition |
+| `backend/import_listings.py` | Manual snapshot importer for initial setup |
+| `backend/update_listings.py` | Request reservation, RentCast fetch, and validation |
+| `backend/sync_pending.py` | Transactional synchronization from the pending response |
+| `backend/requirements.txt` | Python dependencies |
+| `.github/workflows/refresh-listings.yml` | Daily refresh and frontend deployment |
+
+## Scope and limitations
+
+This MVP provides rent-range search over the latest imported active listings.
+Historical price tracking, deal scoring, maps, and user accounts are not implemented.
+The refresh stops on empty or incomplete results rather than replacing the dataset;
+queries exceeding 500 listings require a future pagination change. Listings are
+provider-supplied records, not independently verified availability.
 
 ## License
 
-MIT. The repository's code license does not replace the data provider's terms.
+MIT; see [LICENSE](LICENSE). The code license does not replace RentCast's data terms.
