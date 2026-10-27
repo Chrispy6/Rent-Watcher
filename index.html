@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- HTML defines the page structure; CSS styles it; JavaScript adds behavior. -->
 <head>
   <meta charset="UTF-8">
+  <!-- Use the device width so the CSS grid can adapt on smaller screens. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rent Watcher</title>
   <link rel="stylesheet" href="style.css">
@@ -14,6 +16,8 @@
   </header>
 
   <main>
+    <!-- Labels refer to input IDs; script.js reads these elements by the same IDs. -->
+    <!-- Placeholders are hints, not actual values: the inputs start empty. -->
     <section class="Filters">
       <label for="max_rent"> Maximum Monthly Rent </label>
 
@@ -35,14 +39,18 @@
     <button id="reset_button">Reset</button>
     </section>
 
+    <!-- JavaScript fills this with the visible count or a validation/loading error. -->
     <p id="results_count"></p>
 
+    <!-- Keep the data-source message separate; politely announce updates to screen readers. -->
     <p id="data_status" aria-live="polite"></p>
 
+    <!-- renderListings creates and appends article cards inside this initially empty section. -->
     <section id="listing_container">
 
 
     </section>
   </main>
+  <!-- Load after the elements exist so getElementById can find them immediately. -->
   <script src="script.js"></script>
 </body>

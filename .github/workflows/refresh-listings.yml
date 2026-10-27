@@ -1,12 +1,18 @@
+# GitHub reads this YAML file to run the updater and deploy the static frontend.
+# Commands run on a GitHub-hosted Linux computer, independently of your laptop.
 name: Refresh listings and publish website
 
 on:
+  # A normal code push deploys the committed snapshot without contacting RentCast.
   push:
     branches: [main]
 
+  # Cron fields: minute, hour, day of month, month, day of week (UTC here).
+  # Target 08:17 UTC daily; GitHub may delay scheduled runs.
   schedule:
     - cron: "17 8 * * *"
 
+  # Add a manual Run workflow button; refreshing is opt-in to avoid surprise requests.
   workflow_dispatch:
     inputs:
       refresh:
@@ -14,25 +20,32 @@ on:
         type: boolean
         default: false
 
+# The built-in GitHub token may commit a snapshot and publish Pages.
+# id-token permits the Pages deployment identity; it is not the RentCast API key.
 permissions:
   contents: write
   pages: write
   id-token: write
 
+# Serialize this workflow's runs and let an active run finish instead of cancelling it.
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
   publish:
+    # Restrict publishing and refreshes to the main branch, including manual runs.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    # Record the deployment in the github-pages environment and expose its URL.
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
+    # Expressions inside ${{ }} are evaluated by GitHub. A job environment variable
+    # holds "true" only for the schedule or an explicitly selected manual refresh.
     env:
       REFRESH_LISTINGS: ${{ github.event_name == 'schedule' || inputs.refresh == true }}
 
@@ -43,6 +56,7 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
+      # Refresh steps skip entirely for normal pushes or unchecked manual runs.
       - name: Set up Python
         if: env.REFRESH_LISTINGS == 'true'
         uses: actions/setup-python@v6
@@ -53,6 +67,10 @@ jobs:
         if: env.REFRESH_LISTINGS == 'true'
         run: python -m pip install -r backend/requirements.txt
 
+      # Credentials are injected from repository secrets only into this step.
+      # Fetch -> validate/save pending -> sync database -> replace public snapshot.
+      # The run block uses the runner's default bash error handling: a failing command
+      # stops this step, and later success-dependent steps are skipped.
       - name: Fetch listings and update Neon
         if: env.REFRESH_LISTINGS == 'true'
         env:
@@ -63,6 +81,9 @@ jobs:
           python backend/sync_pending.py
           cp Golden_Listings.pending.json Golden_Listings.json
 
+      # Persist the new snapshot in Git so later code deployments use current data.
+      # No change means no new commit. A failed push is not force-overwritten.
+      # A push using the built-in token does not recursively trigger this push workflow.
       - name: Save updated snapshot to repository
         if: env.REFRESH_LISTINGS == 'true'
         run: |
@@ -75,16 +96,19 @@ jobs:
             git push origin HEAD:main
           fi
 
+      # Upload only public frontend files, not backend scripts or working files.
       - name: Prepare public website files
         run: |
           mkdir -p public
           cp index.html style.css script.js Golden_Listings.json public/
 
+      # An artifact packages these files for the following Pages deployment step.
       - name: Upload website
         uses: actions/upload-pages-artifact@v4
         with:
           path: public
 
+      # Publish explicitly here; do not rely on the bot commit starting another workflow.
       - name: Publish website
         id: deployment
         uses: actions/deploy-pages@v4

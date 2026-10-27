@@ -1,4 +1,5 @@
 
+/* Center the page within a readable maximum width; padding keeps text off the edges. */
 body {
   font-family: Arial, sans-serif;
   max-width: 1100px;
@@ -8,12 +9,16 @@ body {
   color: #172033;
 }
 
+/* # targets the HTML element by ID. Grid lays out the cards added by JavaScript. */
 #listing_container {
   display: grid;
+  /* Fit as many columns as space allows; share spare width with 1fr. */
+  /* min(100%, 280px) prevents the minimum card width overflowing a narrow container. */
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 16px;
 }
 
+/* A dot targets a class, so the same appearance applies to every listing article. */
 .listing-card {
   background: rgb(161, 152, 152);
   border: 1px solid #b6bac1;
@@ -21,6 +26,7 @@ body {
   padding: 20px;
 }
 
+/* Descendant selectors style headings and paragraphs only inside listing cards. */
 .listing-card h2 {
   margin-top: 0;
   font-size: 18px;

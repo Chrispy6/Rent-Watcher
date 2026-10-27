@@ -13,7 +13,7 @@ snapshot that keeps the public site usable while the backend starts.
 - Minimum and maximum rent filters, input validation, and a reset control.
 - FastAPI endpoints backed by PostgreSQL hosted on Neon.
 - Daily RentCast ingestion through GitHub Actions, with response validation and
-  transactional inserts, updates, and removal of stale Golden listings.
+  transactional inserts, updates, and removal of old Golden listings.
 - A saved JSON snapshot displayed before the public backend responds. Current
   filter inputs are reapplied when database records arrive; the snapshot remains
   available if the backend request fails.
@@ -70,7 +70,7 @@ CREATE TABLE rentcast_request_attempts (
 );
 ```
 
-These are initialization steps, not migrations to rerun against existing tables.
+(These are initialization steps, not migrations to rerun against existing tables.)
 
 To seed the database from the committed snapshot without calling RentCast:
 
@@ -222,6 +222,11 @@ The refresh stops on empty or incomplete results rather than replacing the datas
 queries exceeding 500 listings require a future pagination change. Listings are
 provider-supplied records, not independently verified availability.
 
+
+## Development Assistance
+
+I used ChatGPT for explanations, debugging, implementation guidance, and help with documentation. I integrated and tested the application while learning the technologies involved. Other sources like GeeksforGeeks and W3Schools were used for additional explinations and coding syntax.
+
 ## License
 
-MIT; see [LICENSE](LICENSE). The code license does not replace RentCast's data terms.
+MIT; see [LICENSE](LICENSE).
